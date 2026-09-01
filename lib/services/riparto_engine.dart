@@ -6,6 +6,8 @@ import '../utils/ids.dart';
 /// Metodi:
 /// - millesimi / consumo / teste: l'importo complessivo è un unico paniere
 /// - misto: quota fissa, consumi individuali, parti comuni/perdite, IVA e altro
+/// - contatori: consumi individuali a m³, differenza fatturato − contatori
+///   (perdite e parti comuni) a millesimi, quota fissa a parti uguali
 ///
 /// Gli importi vengono arrotondati al centesimo. L'eventuale resto
 /// (positivo o negativo) viene attribuito all'unità con la quota più alta,
@@ -38,6 +40,15 @@ class RipartoEngine {
       consumi[u.id] = raw < 0 ? 0 : raw;
     }
 
+    // Nel metodo "contatori" i criteri sono fissi per costruzione:
+    // quota fissa a parti uguali, differenza (perdite e parti comuni) a millesimi.
+    final critFissa = bolletta.metodo == MetodoRiparto.contatori
+        ? CriterioQuota.partiUguali
+        : bolletta.criterioFissa;
+    final critComune = bolletta.metodo == MetodoRiparto.contatori
+        ? CriterioQuota.millesimi
+        : bolletta.criterioComune;
+
     final sommaConsumi = consumi.values.fold<double>(0, (a, b) => a + b);
     final mcFatt = bolletta.mcFatturati > 0
         ? bolletta.mcFatturati
@@ -65,10 +76,11 @@ class RipartoEngine {
     final senzaContatore = elenco.where((u) => !u.haContatore).toList();
     if (senzaContatore.isNotEmpty &&
         (bolletta.metodo == MetodoRiparto.consumo ||
-            bolletta.metodo == MetodoRiparto.misto)) {
+            bolletta.metodo == MetodoRiparto.misto ||
+            bolletta.metodo == MetodoRiparto.contatori)) {
       avvisi.add(
         '${senzaContatore.length} unità senza contatore: il consumo risulta 0. '
-        'Nel metodo misto pagano comunque la quota fissa e le parti comuni.',
+        'Nel metodo misto e contatori pagano comunque la quota fissa e le parti comuni.',
       );
     }
 
@@ -80,12 +92,18 @@ class RipartoEngine {
         '${zeroConsumo.length} unità con consumo 0 non partecipano al riparto a solo consumo.',
       );
     }
+    if (bolletta.metodo == MetodoRiparto.contatori && zeroConsumo.isNotEmpty) {
+      avvisi.add(
+        '${zeroConsumo.length} unità con consumo 0: pagano solo la quota fissa e le parti comuni.',
+      );
+    }
 
     final millSum = elenco.fold<double>(0, (a, u) => a + u.millesimi);
     if ((millSum - 1000).abs() > 0.05 &&
         (bolletta.metodo == MetodoRiparto.millesimi ||
-            bolletta.criterioFissa == CriterioQuota.millesimi ||
-            bolletta.criterioComune == CriterioQuota.millesimi)) {
+            bolletta.metodo == MetodoRiparto.contatori ||
+            critFissa == CriterioQuota.millesimi ||
+            critComune == CriterioQuota.millesimi)) {
       avvisi.add(
         'I millesimi sommano ${millSum.toStringAsFixed(2)} invece di 1.000. '
         'Il riparto usa la somma effettiva.',
@@ -95,7 +113,7 @@ class RipartoEngine {
     final occupantiSum = elenco.fold<int>(0, (a, u) => a + (u.sfitto ? 0 : u.occupanti));
     if (occupantiSum == 0 &&
         (bolletta.metodo == MetodoRiparto.teste ||
-            bolletta.criterioFissa == CriterioQuota.teste)) {
+            critFissa == CriterioQuota.teste)) {
       avvisi.add(
         'Nessun occupante dichiarato: il criterio per teste cade sulle parti uguali.',
       );
@@ -145,36 +163,42 @@ class RipartoEngine {
             'Parti comuni e perdite: ${bolletta.criterioComune.label.toLowerCase()}. '
             'IVA e altre voci: in proporzione al subtotale.';
         _riempi(fissa, _split(bolletta.quotaFissa, _pesi(elenco, bolletta.criterioFissa)));
-
-        final prezzoMc = mcRif > 0 ? bolletta.variabile / mcRif : 0.0;
-        final costoComune = prezzoMc * consumoComune;
-        final costoInd = (bolletta.variabile - costoComune).clamp(0, bolletta.variabile);
-        final pCons = elenco.map((u) => consumi[u.id] ?? 0).toList();
-        if (costoInd > 0 && pCons.any((x) => x > 0)) {
-          _riempi(cons, _split(costoInd.toDouble(), pCons));
-        } else if (bolletta.variabile > 0 && consumoComune <= 0) {
-          avvisi.add(
-            'Nessun consumo individuale: la quota variabile è stata trattata come comune.',
-          );
-          _riempi(
-            comune,
-            _split(bolletta.variabile, _pesi(elenco, bolletta.criterioComune)),
-          );
-        }
-        if (costoComune > 0) {
-          _riempi(comune, _split(costoComune, _pesi(elenco, bolletta.criterioComune)));
-        }
-        if (bolletta.extra > 0) {
-          final base = List<double>.generate(
-            n,
-            (i) => fissa[i] + cons[i] + comune[i],
-          );
-          if (base.every((x) => x <= 0)) {
-            _riempi(extra, _split(bolletta.extra, _pesi(elenco, CriterioQuota.millesimi)));
-          } else {
-            _riempi(extra, _split(bolletta.extra, base));
-          }
-        }
+        _riempiVariabile(
+          variabile: bolletta.variabile,
+          extra: bolletta.extra,
+          consumoComune: consumoComune,
+          pCons: elenco.map((u) => consumi[u.id] ?? 0).toList(),
+          pesiComune: _pesi(elenco, bolletta.criterioComune),
+          pesiFallback: _pesi(elenco, CriterioQuota.millesimi),
+          fissa: fissa,
+          cons: cons,
+          comune: comune,
+          extraOut: extra,
+          avvisi: avvisi,
+        );
+      case MetodoRiparto.contatori:
+        note =
+            'Quota fissa: parti uguali. '
+            'Consumi individuali: m³ al prezzo della bolletta. '
+            'Differenza tra consumo effettivo e fatturato (perdite e parti comuni): millesimi. '
+            'IVA e altre voci: in proporzione al subtotale.';
+        _riempi(
+          fissa,
+          _split(bolletta.quotaFissa, _pesi(elenco, CriterioQuota.partiUguali)),
+        );
+        _riempiVariabile(
+          variabile: bolletta.variabile,
+          extra: bolletta.extra,
+          consumoComune: consumoComune,
+          pCons: elenco.map((u) => consumi[u.id] ?? 0).toList(),
+          pesiComune: _pesi(elenco, CriterioQuota.millesimi),
+          pesiFallback: _pesi(elenco, CriterioQuota.millesimi),
+          fissa: fissa,
+          cons: cons,
+          comune: comune,
+          extraOut: extra,
+          avvisi: avvisi,
+        );
     }
 
     final tot = List<double>.generate(
@@ -234,8 +258,8 @@ class RipartoEngine {
       totaleExtra: extra.fold(0, (a, b) => a + b),
       totaleGenerale: totGen,
       metodo: bolletta.metodo,
-      criterioFissa: bolletta.criterioFissa,
-      criterioComune: bolletta.criterioComune,
+      criterioFissa: critFissa,
+      criterioComune: critComune,
       avvisi: avvisi,
       noteCalcolo: note,
     );
@@ -294,6 +318,56 @@ class RipartoEngine {
     }
   }
 
+  /// Divide la quota variabile tra consumi individuali (a m³) e parti comuni
+  /// (perdite e differenze), poi spalma IVA e altre voci sul subtotale di ogni
+  /// riga. Usata dai metodi misto e contatori (che differiscono solo per i
+  /// criteri fissi di quota fissa e parti comuni).
+  static void _riempiVariabile({
+    required double variabile,
+    required double extra,
+    required double consumoComune,
+    required List<double> pCons,
+    required List<double> pesiComune,
+    required List<double> pesiFallback,
+    required List<double> fissa,
+    required List<double> cons,
+    required List<double> comune,
+    required List<double> extraOut,
+    required List<String> avvisi,
+  }) {
+    final n = fissa.length;
+    if (n == 0) return;
+    // Il prezzo al m³ si ricava dai m³ di riferimento (fatturati o da lettura
+    // generale); quando i sottocontatori superano il riferimento la differenza
+    // è azzerata e il prezzo cade sui soli m³ individuali.
+    final mcRif = pCons.fold<double>(0, (a, b) => a + b) + consumoComune;
+    final prezzoMc = mcRif > 0 ? variabile / mcRif : 0.0;
+    final costoComune = prezzoMc * consumoComune;
+    final costoInd = (variabile - costoComune).clamp(0, variabile);
+    if (costoInd > 0 && pCons.any((x) => x > 0)) {
+      _riempi(cons, _split(costoInd.toDouble(), pCons));
+    } else if (variabile > 0 && consumoComune <= 0) {
+      avvisi.add(
+        'Nessun consumo individuale: la quota variabile è stata trattata come comune.',
+      );
+      _riempi(comune, _split(variabile, pesiComune));
+    }
+    if (costoComune > 0) {
+      _riempi(comune, _split(costoComune, pesiComune));
+    }
+    if (extra > 0) {
+      final base = List<double>.generate(
+        n,
+        (i) => fissa[i] + cons[i] + comune[i],
+      );
+      if (base.every((x) => x <= 0)) {
+        _riempi(extraOut, _split(extra, pesiFallback));
+      } else {
+        _riempi(extraOut, _split(extra, base));
+      }
+    }
+  }
+
   static RisultatoRiparto _vuoto(
     Bolletta b,
     List<String> avvisi,
@@ -315,8 +389,12 @@ class RipartoEngine {
       totaleExtra: 0,
       totaleGenerale: 0,
       metodo: b.metodo,
-      criterioFissa: b.criterioFissa,
-      criterioComune: b.criterioComune,
+      criterioFissa: b.metodo == MetodoRiparto.contatori
+          ? CriterioQuota.partiUguali
+          : b.criterioFissa,
+      criterioComune: b.metodo == MetodoRiparto.contatori
+          ? CriterioQuota.millesimi
+          : b.criterioComune,
       avvisi: avvisi,
     );
   }

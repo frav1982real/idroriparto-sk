@@ -14,11 +14,12 @@ Pensata per amministratori, consiglieri e condomini che vogliono un prospetto ch
   - fognatura
   - depurazione
   - IVA e altre voci
-- Quattro criteri di riparto, confrontabili sulla stessa bolletta:
+- Cinque criteri di riparto, confrontabili sulla stessa bolletta:
   1. **Millesimi** — criterio residuale dell’art. 1123 c.c.
   2. **Consumo** — in proporzione ai m³ dei sottocontatori
   3. **Occupanti** — se deliberato in assemblea
   4. **Misto** — quote fisse da un lato, consumi a m³ dall’altro, **parti comuni e perdite** spalmate a parte
+  5. **Contatori + differenza a millesimi** — ogni unità paga i propri m³ al prezzo della bolletta; la differenza tra consumo effettivo e m³ fatturati (perdite, parti comuni) si ripartisce per millesimi, la quota fissa a parti uguali
 - Avvisi automatici: millesimi ≠ 1.000, letture mancanti, perdite elevate, unità sfitte.
 - **Prospetto PDF** (tabella + tagliandi individuali) e **CSV** per Excel.
 - Tema chiaro / scuro e backup JSON.

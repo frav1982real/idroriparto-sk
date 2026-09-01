@@ -1,4 +1,4 @@
-enum MetodoRiparto { millesimi, consumo, teste, misto }
+enum MetodoRiparto { millesimi, consumo, teste, misto, contatori }
 
 enum CriterioQuota { millesimi, partiUguali, teste }
 
@@ -12,6 +12,7 @@ extension MetodoRipartoX on MetodoRiparto {
     MetodoRiparto.consumo => 'Consumo',
     MetodoRiparto.teste => 'Occupanti',
     MetodoRiparto.misto => 'Misto',
+    MetodoRiparto.contatori => 'Contatori',
   };
 
   String get titolo => switch (this) {
@@ -19,6 +20,7 @@ extension MetodoRipartoX on MetodoRiparto {
     MetodoRiparto.consumo => 'Solo consumo (m³)',
     MetodoRiparto.teste => 'Per numero di occupanti',
     MetodoRiparto.misto => 'Misto: quota fissa + consumo',
+    MetodoRiparto.contatori => 'Contatori + differenza a millesimi',
   };
 
   String get descrizione => switch (this) {
@@ -30,6 +32,8 @@ extension MetodoRipartoX on MetodoRiparto {
       'Si divide in proporzione alle persone che abitano ciascuna unità. Va deliberato in assemblea e aggiornato quando cambia il nucleo.',
     MetodoRiparto.misto =>
       'Le quote fisse (canone, nolo contatore) si ripartiscono per millesimi, parti uguali o occupanti. I consumi vanno a m³. Le perdite e le parti comuni si spalmano a parte.',
+    MetodoRiparto.contatori =>
+      'Ogni unità paga i propri consumi dei contatori individuali al prezzo della bolletta (€/m³). La differenza tra il consumo effettivo complessivo e i m³ fatturati — perdite, giardino, usi comuni — si ripartisce per millesimi come spese comuni. La quota fissa si divide in parti uguali.',
   };
 }
 

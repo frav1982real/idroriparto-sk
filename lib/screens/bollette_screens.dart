@@ -396,6 +396,23 @@ class _BollettaFormScreenState extends State<BollettaFormScreen> {
                     ],
                   ),
                 ],
+                if (metodo == MetodoRiparto.contatori) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: const [
+                      StatusPill(
+                        label: 'Quota fissa: parti uguali',
+                        icon: Icons.groups_outlined,
+                      ),
+                      StatusPill(
+                        label: 'Differenza: millesimi',
+                        icon: Icons.balance_outlined,
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 18),
                 SectionLabel(
                   'Consumi del periodo (m³)',

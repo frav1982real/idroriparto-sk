@@ -321,7 +321,7 @@ class _ConfrontoSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Stesso importo, quattro criteri',
+              'Stesso importo, cinque criteri',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 6),
@@ -344,6 +344,7 @@ class _ConfrontoSheet extends StatelessWidget {
                   DataColumn(label: Text('Consumo'), numeric: true),
                   DataColumn(label: Text('Occupanti'), numeric: true),
                   DataColumn(label: Text('Misto'), numeric: true),
+                  DataColumn(label: Text('Contatori'), numeric: true),
                 ],
                 rows: [
                   for (final u in store.unita)
