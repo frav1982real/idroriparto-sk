@@ -1,0 +1,62 @@
+name: idroriparto
+description: Ripartizione consumi e spese dell'acqua condominiale.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  intl: any
+  shared_preferences: ^2.5.3
+  pdf: ^3.11.3
+  printing: ^5.14.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/logo_source.png
+  adaptive_icon_background: "#2264E2"
+  adaptive_icon_foreground: assets/brand/logo_source.png
+  adaptive_icon_monochrome: assets/brand/logo_mono.png
+  min_sdk_android: 24
+  web:
+    generate: true
+    image_path: assets/brand/logo_source.png
+    background_color: "#F8FAFC"
+    theme_color: "#2264E2"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/brand/logo_source.png
+    - assets/fonts/NotoSans-Regular.ttf
+    - assets/fonts/NotoSans-SemiBold.ttf
+  # I NotoSans sopra restano: servono solo al PDF (pdf_service.dart).
+  #
+  # Font UI: Nimbus Sans (URW base-35, il disegno da cui deriva
+  # Nimbus Sans L) — file inclusi nel progetto, resa identica ovunque.
+  fonts:
+    - family: Nimbus Sans L
+      fonts:
+        - asset: assets/fonts/NimbusSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NimbusSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/NimbusSans-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/NimbusSans-BoldItalic.ttf
+          weight: 700
+          style: italic
